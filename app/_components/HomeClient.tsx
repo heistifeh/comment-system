@@ -29,7 +29,7 @@ export const HomeClient = () => {
   const onChangeEditComment = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEditComment((prev) => ({ ...prev, payload: e.target.value }));
   };
-  
+
   // handle form submission
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -49,7 +49,7 @@ export const HomeClient = () => {
   // fetch comment list from Supabase
   const getCommentList = async () => {
     const { data, error } = await supabase.from("comments").select("*");
-    if (!error && data) {
+    if (!error) {
       setCommentList(data);
     } else {
       window.alert(error?.message || "Error fetching comments");
@@ -76,6 +76,22 @@ export const HomeClient = () => {
       window.alert(error?.message || "Error updating comment");
     }
   };
+
+  //delete comment
+  const confirmDelete = async (id: string) => {
+    const ok = window.confirm("Delete comment?");
+    if (ok) {
+      const { data, error } = await supabase
+        .from("comments")
+        .delete()
+        .match({ id });
+      if (!error) {
+        window.alert("Deleted Comment :)");
+      } else {
+        window.alert(error?.message);
+      }
+    }
+  };
   return (
     <div className="p-12">
       <h1 className="text-2xl font-bold">Comments!</h1>
@@ -87,7 +103,7 @@ export const HomeClient = () => {
           value={comment}
           className="p-2 border-b focus:border-b-gray-700 w-full outline-none"
         />
-        <button className="px-4 py-2 bg-green-500 rounded-lg text-white">
+        <button className="px-4 py-2 bg-blue-500 rounded-lg text-white">
           Submit
         </button>
       </form>
@@ -98,10 +114,21 @@ export const HomeClient = () => {
             const bDate = new Date(b.created_at);
             return +aDate - +bDate;
           })
-          .map((comment) => (
-            <div key={comment.id} className="border rounded-md p-4">
+          .map((comment) => {
+            const isEditing = editComment.id === comment.id;
+
+            return (
+              <div key={comment.id} className="border rounded-md p-4">
+                <p className="font-semibold mb-2">
+                  {comment.username}
+                  {comment.updated_at !== comment.created_at && (
+                    <span className="ml-4 text-sm italic font-extralight">
+                      edited
+                    </span>
+                  )}
+                </p>
                 <div className="flex items-center gap-2 justify-between">
-                  {comment.id === editComment.id ? (
+                  {isEditing ? (
                     <input
                       type="text"
                       value={editComment.payload}
@@ -111,40 +138,55 @@ export const HomeClient = () => {
                   ) : (
                     <p className="font-light">{comment.payload}</p>
                   )}
-                  {editComment.id === comment.id ? (
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={confirmEdit}
-                        className="text-green-500"
-                      >
-                        Confirm
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditComment({ id: "", payload: "" })}
-                        className="text-gray-500"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setEditComment({
-                          id: comment.id,
-                          payload: comment.payload,
-                        })
-                      }
-                      className="text-green-500"
-                    >
-                      Edit
-                    </button>
-                  )}
+                  <div className="flex gap-2">
+                    {isEditing ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={confirmEdit}
+                          disabled={editComment.payload === comment.payload}
+                          className="text-green-500"
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEditComment({ id: "", payload: "" })
+                          }
+                          className="text-gray-500"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEditComment({
+                              id: comment.id,
+                              payload: comment.payload,
+                            })
+                          }
+                          className="text-green-500"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => confirmDelete(comment.id)}
+                          className="text-gray-700"
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
-          ))}
+            );
+          })}
       </div>
     </div>
   );
