@@ -1,7 +1,7 @@
 "use client";
 
 import { supabase } from "@/lib/supabaseClient";
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import {
   ArrowUturnLeftIcon,
   CheckIcon,
@@ -9,6 +9,7 @@ import {
   TrashIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
+import useSWR, { mutate } from "swr";
 
 interface CommentParams {
   id: string;
@@ -23,15 +24,38 @@ interface EditCommentParams {
   payload: string;
   reply_of?: string | null;
 }
+// fetcher function for SWR
+const fetcher = (url: string) =>
+  fetch(url, { method: "GET" }).then((res) => res.json());
+
+//Add comment function
+const addCommentRequest = (url: string, data: any) =>
+  fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  }).then((res) => res.json());
+
+// Edit comment function
+const editCommentRequest = (url: string, data: any) =>
+  fetch(url, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  }).then((res) => res.json());
+
 export const HomeClient = () => {
   const [comment, setComment] = useState("");
-  const [commentList, setCommentList] = useState<CommentParams[]>([]);
   const [replyOf, setReplyOf] = useState<string | null>(null);
   const [editComment, setEditComment] = useState<EditCommentParams>({
     id: "",
     payload: "",
     reply_of: replyOf,
   });
+
+  const { data: commentList, error: commentListError } = useSWR<
+    CommentParams[]
+  >("/api/comment", fetcher);
 
   // handle input change
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -42,50 +66,53 @@ export const HomeClient = () => {
   };
 
   // handle form submission
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    // TODO: call Supabase to persist the comment
-    console.log("Submitted comment:", comment);
-    const { data, error } = await supabase
-      .from("comments")
-      .insert({ username: "Anonymous", payload: comment, reply_of: replyOf });
-    if (!error) {
-      window.alert("Comment sent successfully!");
-      setComment("");
-    } else {
-      window.alert(error?.message || "Error sending comment");
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const newComment = {
+      username: "hoonwee@email.com",
+      payload: comment,
+      reply_of: replyOf,
+    };
+    if (typeof commentList !== "undefined") {
+      mutate("/api/comment", [...commentList, newComment], false);
+      const response = await addCommentRequest("/api/comment", newComment);
+      if (response[0].created_at) {
+        mutate("/api/comment");
+        window.alert("Hooray!");
+        setComment("");
+      }
     }
   };
-
-  // fetch comment list from Supabase
-  const getCommentList = async () => {
-    const { data, error } = await supabase.from("comments").select("*");
-    if (!error) {
-      setCommentList(data);
-    } else {
-      window.alert(error?.message || "Error fetching comments");
-      setCommentList([]);
-    }
-  };
-
-  // fetch comments on component mount
-  useEffect(() => {
-    getCommentList();
-  }, []);
 
   // confirm edit comment
+
   const confirmEdit = async () => {
-    const { data, error } = await supabase
-      .from("comments")
-      .update({ payload: editComment.payload })
-      .eq("id", editComment.id);
-    if (!error) {
-      window.alert("Comment updated successfully!");
-      setEditComment({ id: "", payload: "" });
-      getCommentList();
-    } else {
-      window.alert(error?.message || "Error updating comment");
+    if (!editComment.id || typeof commentList === "undefined") {
+      return;
     }
+
+    const updatedPayload = editComment.payload?.trim() ?? "";
+    const optimisticList = commentList.map((current) =>
+      current.id === editComment.id
+        ? { ...current, payload: updatedPayload }
+        : current,
+    );
+
+    mutate("/api/comment", optimisticList, false);
+    const response = await editCommentRequest("/api/comment", {
+      payload: updatedPayload,
+      commentId: editComment.id,
+    });
+
+    if (!Array.isArray(response)) {
+      window.alert(response?.message ?? "Error updating comment");
+      mutate("/api/comment");
+      return;
+    }
+
+    mutate("/api/comment");
+    window.alert("Comment updated successfully!");
+    setEditComment({ id: "", payload: "" });
   };
 
   //delete comment
@@ -113,7 +140,7 @@ export const HomeClient = () => {
             <div className="flex gap-4 my-2 items-center justify-start">
               <p className="text-xs font-extralight italic text-gray-600">
                 Reply of:{" "}
-                {commentList.find((comment) => comment.id === replyOf)
+                {commentList?.find((comment) => comment.id === replyOf)
                   ?.payload ?? ""}
               </p>
               <button
@@ -138,7 +165,7 @@ export const HomeClient = () => {
         </div>
       </form>
       <div className="flex flex-col gap-4 pt-12">
-        {commentList
+        {(commentList ?? [])
           .sort((a, b) => {
             const aDate = new Date(a.created_at);
             const bDate = new Date(b.created_at);
@@ -154,7 +181,7 @@ export const HomeClient = () => {
                     <ArrowUturnLeftIcon className="w-4 text-gray-600" />
                     <p className="font-extralight italic text-gray-600 text-xs">
                       Reply of:{" "}
-                      {commentList.find((c) => c.id === comment.reply_of)
+                      {commentList?.find((c) => c.id === comment.reply_of)
                         ?.payload ?? ""}
                     </p>
                   </div>
