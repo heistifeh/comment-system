@@ -1,8 +1,15 @@
 "use client";
 
 import { supabase } from "@/lib/supabaseClient";
-import { get } from "http";
 import { useEffect, useState } from "react";
+import {
+  ArrowUturnLeftIcon,
+  CheckIcon,
+  PencilSquareIcon,
+  TrashIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
+
 interface CommentParams {
   id: string;
   created_at: string;
@@ -112,8 +119,9 @@ export const HomeClient = () => {
               <button
                 onClick={() => setReplyOf(null)}
                 className="text-xs font-light text-red-600"
+                title="cancel"
               >
-                Cancel
+                <XMarkIcon className="w-4 text-gray-600" />
               </button>
             </div>
           )}
@@ -142,11 +150,14 @@ export const HomeClient = () => {
             return (
               <div key={comment.id} className="border rounded-md p-4">
                 {comment.reply_of && (
-                  <p className="font-extralight italic text-gray-600 text-xs">
-                    Reply of:{" "}
-                    {commentList.find((c) => c.id === comment.reply_of)
-                      ?.payload ?? ""}
-                  </p>
+                  <div className="flex items-center justify-start gap-2">
+                    <ArrowUturnLeftIcon className="w-4 text-gray-600" />
+                    <p className="font-extralight italic text-gray-600 text-xs">
+                      Reply of:{" "}
+                      {commentList.find((c) => c.id === comment.reply_of)
+                        ?.payload ?? ""}
+                    </p>
+                  </div>
                 )}
                 <p className="font-semibold mb-2">
                   {comment.username}
@@ -175,8 +186,15 @@ export const HomeClient = () => {
                           onClick={confirmEdit}
                           disabled={editComment.payload === comment.payload}
                           className="text-green-500"
+                          title="confirm"
                         >
-                          Confirm
+                          <CheckIcon
+                            className={`${
+                              editComment.payload === comment.payload
+                                ? `text-gray-300`
+                                : `text-green-500`
+                            } w-6`}
+                          />
                         </button>
                         <button
                           type="button"
@@ -184,8 +202,9 @@ export const HomeClient = () => {
                             setEditComment({ id: "", payload: "" })
                           }
                           className="text-gray-500"
+                          title="cancel"
                         >
-                          Cancel
+                          <XMarkIcon className="w-5 h-5" />
                         </button>
                       </>
                     ) : (
@@ -199,22 +218,25 @@ export const HomeClient = () => {
                             })
                           }
                           className="text-green-500"
+                          title="Edit comment"
                         >
-                          Edit
+                          <PencilSquareIcon className="w-5 h-5" />
                         </button>
                         <button
                           type="button"
                           onClick={() => confirmDelete(comment.id)}
                           className="text-gray-700"
+                          title="Delete comment"
                         >
-                          Delete
+                          <TrashIcon className="w-5 h-5" />
                         </button>
                         <button
                           type="button"
                           onClick={() => setReplyOf(comment.id)}
                           className="text-orange-500"
+                          title="reply to comment"
                         >
-                          Reply
+                          <ArrowUturnLeftIcon className="w-5 h-5 rotate-180" />
                         </button>
                       </>
                     )}
