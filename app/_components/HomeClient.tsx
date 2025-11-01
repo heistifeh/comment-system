@@ -14,15 +14,19 @@ interface CommentParams {
 interface EditCommentParams {
   id: string;
   payload: string;
+  reply_of?: string | null;
 }
 export const HomeClient = () => {
   const [comment, setComment] = useState("");
   const [commentList, setCommentList] = useState<CommentParams[]>([]);
+  const [replyOf, setReplyOf] = useState<string | null>(null);
   const [editComment, setEditComment] = useState<EditCommentParams>({
     id: "",
     payload: "",
+    reply_of: replyOf,
   });
 
+  // handle input change
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setComment(e.target.value);
   };
@@ -37,7 +41,7 @@ export const HomeClient = () => {
     console.log("Submitted comment:", comment);
     const { data, error } = await supabase
       .from("comments")
-      .insert({ username: "Anonymous", payload: comment });
+      .insert({ username: "Anonymous", payload: comment, reply_of: replyOf });
     if (!error) {
       window.alert("Comment sent successfully!");
       setComment("");
@@ -92,20 +96,38 @@ export const HomeClient = () => {
       }
     }
   };
+
   return (
     <div className="p-12">
       <h1 className="text-2xl font-bold">Comments!</h1>
       <form onSubmit={handleSubmit} className="mt-8 flex gap-8">
-        <input
-          type="text"
-          placeholder="Add a comment"
-          onChange={handleChange}
-          value={comment}
-          className="p-2 border-b focus:border-b-gray-700 w-full outline-none"
-        />
-        <button className="px-4 py-2 bg-blue-500 rounded-lg text-white">
-          Submit
-        </button>
+        <div className="w-full">
+          {replyOf && (
+            <div className="flex gap-4 my-2 items-center justify-start">
+              <p className="text-xs font-extralight italic text-gray-600">
+                Reply of:{" "}
+                {commentList.find((comment) => comment.id === replyOf)
+                  ?.payload ?? ""}
+              </p>
+              <button
+                onClick={() => setReplyOf(null)}
+                className="text-xs font-light text-red-600"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+          <input
+            type="text"
+            placeholder="Add a comment"
+            onChange={handleChange}
+            value={comment}
+            className="p-2 border-b focus:border-b-gray-700 w-full outline-none"
+          />
+          <button className="px-4 py-2 bg-blue-500 rounded-lg text-white">
+            Submit
+          </button>
+        </div>
       </form>
       <div className="flex flex-col gap-4 pt-12">
         {commentList
@@ -119,6 +141,13 @@ export const HomeClient = () => {
 
             return (
               <div key={comment.id} className="border rounded-md p-4">
+                {comment.reply_of && (
+                  <p className="font-extralight italic text-gray-600 text-xs">
+                    Reply of:{" "}
+                    {commentList.find((c) => c.id === comment.reply_of)
+                      ?.payload ?? ""}
+                  </p>
+                )}
                 <p className="font-semibold mb-2">
                   {comment.username}
                   {comment.updated_at !== comment.created_at && (
@@ -179,6 +208,13 @@ export const HomeClient = () => {
                           className="text-gray-700"
                         >
                           Delete
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setReplyOf(comment.id)}
+                          className="text-orange-500"
+                        >
+                          Reply
                         </button>
                       </>
                     )}
